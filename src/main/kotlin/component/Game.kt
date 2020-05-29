@@ -61,8 +61,11 @@ class Game : RComponent<RProps, Game.State>() {
         }
         when (val currentState = state.gameState) {
             is GameState.Playing -> {
-                setState {
-                    gameState = currentState.calculateNextState()
+                val nextState = currentState.calculateNextState()
+                if (currentState != nextState) {
+                    setState {
+                        gameState = nextState
+                    }
                 }
             }
         }
@@ -80,6 +83,7 @@ class Game : RComponent<RProps, Game.State>() {
     }
 
     override fun RBuilder.render() {
+        println("render")
         canvasComponent(
                 state.gameState.canvasWidth.toString(),
                 state.gameState.canvasHeight.toString()
@@ -112,7 +116,7 @@ class Game : RComponent<RProps, Game.State>() {
         sealed class Playing : GameState() {
             abstract fun calculateNextState(): GameState
 
-            class PlayerJumping(
+            data class PlayerJumping(
                     override val player: GameObject,
                     private val t: Int
             ) : Playing() {
@@ -129,7 +133,7 @@ class Game : RComponent<RProps, Game.State>() {
                 }
             }
 
-            class PlayerRunning(
+            data class PlayerRunning(
                     override val player: GameObject
             ) : Playing() {
                 override fun calculateNextState(): GameState {
