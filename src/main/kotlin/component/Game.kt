@@ -11,20 +11,23 @@ import react.setState
 import kotlin.browser.window
 
 class Game : RComponent<RProps, Game.State>() {
-    init {
-        state.apply {
-            player = GameObject(
-                    600.0,
-                    400.0,
-                    100.0,
-                    100.0,
-                    v3
-            )
-            keydown = false
-        }
-    }
 
     private var keydown = false
+
+    init {
+        state.apply {
+            gameState = GameState.Playing.PlayerRunning(
+                    GameObject(
+                            600.0,
+                            400.0,
+                            100.0,
+                            100.0,
+                            v3
+                    )
+            )
+        }
+        keydown = false
+    }
 
     override fun componentDidMount() {
         window.addEventListener("keydown", {
@@ -46,37 +49,49 @@ class Game : RComponent<RProps, Game.State>() {
         window.requestAnimationFrame {
             updateStatus()
         }
-        if (keydown && state.player.y > 200) {
+        if (keydown && state.gameState !is GameState.Playing.PlayerJumping) {
+            keydown = false
             setState {
-                val y = player.y
-                player = player.copy(y = y - 3)
+                gameState = GameState.Playing.PlayerJumping(
+                        gameState.player,
+                        0
+                )
             }
-        } else if (!keydown && state.player.y < 400) {
-            setState {
-                val y = player.y
-                player = player.copy(y = y + 3)
+            return
+        }
+        when (val currentState = state.gameState) {
+            is GameState.Playing -> {
+                setState {
+                    gameState = currentState.calculateNextState()
+                }
             }
         }
     }
 
     private fun drawGameObject(context: CanvasRenderingContext2D, gameObject: GameObject) {
-        gameObject.image.onload = {
+        if (gameObject.imageLoaded) {
             context.drawImage(gameObject.image, gameObject.x, gameObject.y, gameObject.width, gameObject.height)
+        } else {
+            gameObject.image.onload = {
+                gameObject.imageLoaded = true
+                context.drawImage(gameObject.image, gameObject.x, gameObject.y, gameObject.width, gameObject.height)
+            }
         }
-        context.drawImage(gameObject.image, gameObject.x, gameObject.y, gameObject.width, gameObject.height)
     }
 
     override fun RBuilder.render() {
-        println("render")
-        canvasComponent("800", "600") { context ->
+        canvasComponent(
+                state.gameState.canvasWidth.toString(),
+                state.gameState.canvasHeight.toString()
+        ) { context ->
             context.fillStyle = "#3C3C3C"
-            context.fillRect(0.0, 0.0, 800.0, 600.0)
-            drawGameObject(context, state.player)
+            context.fillRect(0.0, 0.0, state.gameState.canvasWidth, state.gameState.canvasHeight)
+            drawGameObject(context, state.gameState.player)
         }
     }
 
     interface State : RState {
-        var player: GameObject
+        var gameState: GameState
     }
 
     data class GameObject(
@@ -84,8 +99,45 @@ class Game : RComponent<RProps, Game.State>() {
             val y: Double,
             val width: Double,
             val height: Double,
-            val image: Image
+            val image: Image,
+            var imageLoaded: Boolean = false
     )
+
+    sealed class GameState {
+        abstract val player: GameObject
+        val canvasWidth = 800.0
+        val canvasHeight = 600.0
+        val groundY = 400.0
+
+        sealed class Playing : GameState() {
+            abstract fun calculateNextState(): GameState
+
+            class PlayerJumping(
+                    override val player: GameObject,
+                    private val t: Int
+            ) : Playing() {
+                override fun calculateNextState(): GameState {
+                    val gravity = 0.4
+                    val vy = 10
+                    val y = 0.5 * gravity * t * t - vy * t + (groundY)
+                    println("gravity: $gravity, t: $t, vy: $vy, playerY: ${player.y}")
+                    return if (y <= groundY) {
+                        PlayerJumping(player.copy(y = y), t + 1)
+                    } else {
+                        PlayerRunning(player.copy(y = groundY))
+                    }
+                }
+            }
+
+            class PlayerRunning(
+                    override val player: GameObject
+            ) : Playing() {
+                override fun calculateNextState(): GameState {
+                    return this
+                }
+            }
+        }
+    }
 
     companion object {
         private val v1 = Image().apply {
