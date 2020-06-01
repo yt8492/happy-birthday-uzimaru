@@ -53,13 +53,7 @@ class Game : RComponent<RProps, Game.State>() {
                 }
                 is GameState.Playing.PlayerRunning -> {
                     setState {
-                        gameState = GameState.Playing.PlayerJumping(
-                                currentState.player,
-                                currentState.enemyList,
-                                0,
-                                currentState.frame,
-                                currentState.score
-                        )
+                        gameState = currentState.jumpStart()
                     }
                 }
                 is GameState.End -> {
@@ -244,6 +238,16 @@ class Game : RComponent<RProps, Game.State>() {
                     override val frame: Int,
                     override val score: Int
             ) : Playing() {
+                fun jumpStart(): PlayerJumping {
+                    return PlayerJumping(
+                            player,
+                            enemyList,
+                            0,
+                            frame,
+                            score
+                    )
+                }
+
                 override fun calculateNextState(): GameState {
                     calculateGameEnd()?.let {
                         return it
