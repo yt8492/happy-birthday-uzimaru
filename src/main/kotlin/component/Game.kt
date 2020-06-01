@@ -83,20 +83,44 @@ class Game : RComponent<RProps, Game.State>() {
 
     private fun drawGameState(context: CanvasRenderingContext2D, gameState: GameState) {
         context.fillStyle = "#3C3C3C"
-        context.fillRect(0.0, 0.0, gameState.canvasWidth, gameState.canvasHeight)
+        context.fillRect(0.0, 0.0, GameState.canvasWidth, GameState.canvasHeight)
         context.fillStyle = "#199861"
         context.font = "24px \"VT323\""
         context.fillText("score: ${gameState.score}", 50.0, 50.0)
-        gameState.enemyList.forEach {
-            drawGameObject(context, it)
+        when (gameState) {
+            is GameState.Playing -> {
+                gameState.enemyList.forEach {
+                    drawGameObject(context, it)
+                }
+                drawGameObject(context, gameState.player)
+            }
+            is GameState.End.GameOver -> {
+                drawGameObject(context, gameState.player)
+                gameState.enemyList.forEach {
+                    drawGameObject(context, it)
+                }
+                val statusText = "Game Over!"
+                val textWidth = context.measureText(statusText).width
+                context.font = "32px \"VT323\""
+                context.fillText(statusText, GameState.canvasWidth / 2 - textWidth / 2, GameState.canvasHeight / 2)
+            }
+            is GameState.End.GameClear -> {
+                drawGameObject(context, gameState.player)
+                drawGameObject(context, GameState.chicken())
+                val statusText = "Happy Birthday uzimaru!"
+                val textWidth = context.measureText(statusText).width
+                context.font = "32px \"VT323\""
+                context.fillText(statusText, GameState.canvasWidth / 2 - textWidth / 2, GameState.canvasHeight / 2)
+
+            }
         }
         drawGameObject(context, gameState.player)
     }
 
     override fun RBuilder.render() {
         canvasComponent(
-                state.gameState.canvasWidth.toString(),
-                state.gameState.canvasHeight.toString()
+                GameState.canvasWidth.toString(),
+                GameState.canvasHeight.toString()
         ) { context ->
             drawGameState(context, state.gameState)
         }
@@ -128,21 +152,7 @@ class Game : RComponent<RProps, Game.State>() {
         abstract val frame: Int
         abstract val enemyList: List<GameObject>
         abstract val score: Int
-        val canvasWidth = 800.0
-        val canvasHeight = 600.0
-        val groundY = 400.0
-        val evolutionScore = 1000
-        val clearScore = 2000
 
-        protected fun enemy(): GameObject {
-            return GameObject(
-                     0.0,
-                    groundY,
-                    100.0,
-                    100.0,
-                    v1
-            )
-        }
         sealed class Playing : GameState() {
             abstract fun calculateNextState(): GameState
 
@@ -170,7 +180,7 @@ class Game : RComponent<RProps, Game.State>() {
                     return End.GameOver(player, enemyList, frame, score)
                 }
                 if (score >= clearScore) {
-                    return End.GameClear(player, enemyList, frame, score)
+                    return End.GameClear(player.copy(y = groundY), enemyList, frame, score)
                 }
                 return null
             }
@@ -247,15 +257,22 @@ class Game : RComponent<RProps, Game.State>() {
         }
 
         companion object {
+            const val canvasWidth = 800.0
+            const val canvasHeight = 600.0
+            const val groundY = 400.0
+            const val evolutionScore = 1000
+            const val clearScore = 2000
+            const val playerX = 600.0
+            const val playerWidth = 100.0
+            const val playerHeight = 100.0
+            const val enemyWidth = 100.0
+            const val enemyHeight = 100.0
+            const val chickenWidth = 200.0
+            const val chickenHeight = 200.0
+
             fun newGame(): GameState {
                 return Playing.PlayerRunning(
-                        GameObject(
-                                600.0,
-                                400.0,
-                                100.0,
-                                100.0,
-                                v3
-                        ),
+                        uzimaru1(),
                         emptyList(),
                         0,
                         0
@@ -264,21 +281,41 @@ class Game : RComponent<RProps, Game.State>() {
 
             fun uzimaru1(): GameObject {
                 return GameObject(
-                        600.0,
-                        400.0,
-                        100.0,
-                        100.0,
+                        playerX,
+                        groundY,
+                        playerWidth,
+                        playerHeight,
                         v2
                 )
             }
 
             fun uzimaru2(): GameObject {
                 return GameObject(
-                        600.0,
-                        400.0,
-                        100.0,
-                        100.0,
+                        playerX,
+                        groundY,
+                        playerWidth,
+                        playerHeight,
                         v3
+                )
+            }
+
+            fun enemy(): GameObject {
+                return GameObject(
+                        0.0,
+                        groundY,
+                        enemyWidth,
+                        enemyHeight,
+                        v1
+                )
+            }
+
+            fun chicken(): GameObject {
+                return GameObject(
+                        canvasWidth / 2 - chickenWidth / 2,
+                        canvasHeight / 2,
+                        chickenWidth,
+                        chickenHeight,
+                        v4
                 )
             }
         }
