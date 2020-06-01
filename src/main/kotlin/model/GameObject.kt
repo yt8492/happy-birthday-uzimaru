@@ -15,7 +15,7 @@ data class GameObject(
         val centerX2 = other.x + other.width / 2
         val centerY1 = this.y + this.height / 2
         val centerY2 = other.y + other.height / 2
-        return abs(centerX1 - centerX2) < this.width / 2 + other.width / 2 &&
-                abs(centerY1 - centerY2) < this.height / 2 + other.width / 2
+        return abs(centerX1 - centerX2) < (this.width / 2 + other.width / 2) * 0.7 &&
+                abs(centerY1 - centerY2) < (this.height / 2 + other.width / 2) * 0.7
     }
 }
