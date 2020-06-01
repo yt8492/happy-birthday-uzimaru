@@ -10,7 +10,6 @@ import react.RState
 import react.setState
 import kotlin.browser.window
 import kotlin.math.abs
-import kotlin.random.Random
 
 class Game : RComponent<RProps, Game.State>() {
 
@@ -18,17 +17,7 @@ class Game : RComponent<RProps, Game.State>() {
 
     init {
         state.apply {
-            gameState = GameState.Playing.PlayerRunning(
-                    GameObject(
-                            600.0,
-                            400.0,
-                            100.0,
-                            100.0,
-                            v3
-                    ),
-                    emptyList(),
-                    0
-            )
+            gameState = GameState.newGame()
         }
         keydown = false
     }
@@ -54,15 +43,25 @@ class Game : RComponent<RProps, Game.State>() {
             updateStatus()
         }
         val currentState = state.gameState
-        if (keydown && currentState is GameState.Playing.PlayerRunning) {
+        if (keydown) {
             keydown = false
-            setState {
-                gameState = GameState.Playing.PlayerJumping(
-                        currentState.player,
-                        currentState.enemyList,
-                        0,
-                        currentState.frame
-                )
+            when (currentState) {
+                is GameState.Playing.PlayerRunning -> {
+                    setState {
+                        gameState = GameState.Playing.PlayerJumping(
+                                currentState.player,
+                                currentState.enemyList,
+                                0,
+                                currentState.frame,
+                                currentState.score
+                        )
+                    }
+                }
+                is GameState.End -> {
+                    setState {
+                        gameState = GameState.newGame()
+                    }
+                }
             }
             return
         }
@@ -79,14 +78,19 @@ class Game : RComponent<RProps, Game.State>() {
     }
 
     private fun drawGameObject(context: CanvasRenderingContext2D, gameObject: GameObject) {
-        if (gameObject.imageLoaded) {
-            context.drawImage(gameObject.image, gameObject.x, gameObject.y, gameObject.width, gameObject.height)
-        } else {
-            gameObject.image.onload = {
-                gameObject.imageLoaded = true
-                context.drawImage(gameObject.image, gameObject.x, gameObject.y, gameObject.width, gameObject.height)
-            }
+        context.drawImage(gameObject.image, gameObject.x, gameObject.y, gameObject.width, gameObject.height)
+    }
+
+    private fun drawGameState(context: CanvasRenderingContext2D, gameState: GameState) {
+        context.fillStyle = "#3C3C3C"
+        context.fillRect(0.0, 0.0, gameState.canvasWidth, gameState.canvasHeight)
+        context.fillStyle = "#199861"
+        context.font = "24px \"VT323\""
+        context.fillText("score: ${gameState.score}", 50.0, 50.0)
+        gameState.enemyList.forEach {
+            drawGameObject(context, it)
         }
+        drawGameObject(context, gameState.player)
     }
 
     override fun RBuilder.render() {
@@ -94,19 +98,7 @@ class Game : RComponent<RProps, Game.State>() {
                 state.gameState.canvasWidth.toString(),
                 state.gameState.canvasHeight.toString()
         ) { context ->
-            context.fillStyle = "#3C3C3C"
-            context.fillRect(0.0, 0.0, state.gameState.canvasWidth, state.gameState.canvasHeight)
-            when (val gameState = state.gameState) {
-                is GameState.Playing -> {
-                    gameState.enemyList.forEach {
-                        if (it.checkCollision(gameState.player)) {
-                            println("collision")
-                        }
-                        drawGameObject(context, it)
-                    }
-                }
-            }
-            drawGameObject(context, state.gameState.player)
+            drawGameState(context, state.gameState)
         }
     }
 
@@ -119,8 +111,7 @@ class Game : RComponent<RProps, Game.State>() {
             val y: Double,
             val width: Double,
             val height: Double,
-            val image: Image,
-            var imageLoaded: Boolean = false
+            val image: Image
     ) {
         fun checkCollision(other: GameObject): Boolean {
             val centerX1 = this.x + this.width / 2
@@ -135,9 +126,12 @@ class Game : RComponent<RProps, Game.State>() {
     sealed class GameState {
         abstract val player: GameObject
         abstract val frame: Int
+        abstract val enemyList: List<GameObject>
+        abstract val score: Int
         val canvasWidth = 800.0
         val canvasHeight = 600.0
         val groundY = 400.0
+        val clearScore = 2000
 
         protected fun enemy(): GameObject {
             return GameObject(
@@ -145,14 +139,11 @@ class Game : RComponent<RProps, Game.State>() {
                     groundY,
                     100.0,
                     100.0,
-                    v1,
-                    true
+                    v1
             )
         }
-
         sealed class Playing : GameState() {
             abstract fun calculateNextState(): GameState
-            abstract val enemyList: List<GameObject>
 
             protected fun calculateNextEnemies(): List<GameObject> {
                 if (frame % listOf(100, 200).random() == 0) {
@@ -177,16 +168,23 @@ class Game : RComponent<RProps, Game.State>() {
                     override val player: GameObject,
                     override val enemyList: List<GameObject>,
                     private val t: Int,
-                    override val frame: Int
+                    override val frame: Int,
+                    override val score: Int
             ) : Playing() {
                 override fun calculateNextState(): GameState {
+                    if (enemyList.any { it.checkCollision(player) }) {
+                        return End.GameOver(player, enemyList, frame, score)
+                    }
+                    if (score >= clearScore) {
+                        return End.GameClear(player, enemyList, frame, score)
+                    }
                     val gravity = 0.4
                     val vy = 13
                     val y = 0.5 * gravity * t * t - vy * t + (groundY)
                     return if (y <= groundY) {
-                        PlayerJumping(player.copy(y = y), calculateNextEnemies(), t + 1, frame + 1)
+                        PlayerJumping(player.copy(y = y), calculateNextEnemies(), t + 1, frame + 1, score + 1)
                     } else {
-                        PlayerRunning(player.copy(y = groundY), calculateNextEnemies(), frame + 1)
+                        PlayerRunning(player.copy(y = groundY), calculateNextEnemies(), frame + 1, score + 1)
                     }
                 }
             }
@@ -194,11 +192,51 @@ class Game : RComponent<RProps, Game.State>() {
             data class PlayerRunning(
                     override val player: GameObject,
                     override val enemyList: List<GameObject>,
-                    override val frame: Int
+                    override val frame: Int,
+                    override val score: Int
             ) : Playing() {
                 override fun calculateNextState(): GameState {
-                    return this.copy(enemyList = calculateNextEnemies(), frame = frame + 1)
+                    if (enemyList.any { it.checkCollision(player) }) {
+                        return End.GameOver(player, enemyList, frame, score)
+                    }
+                    if (score >= clearScore) {
+                        return End.GameClear(player, enemyList, frame, score)
+                    }
+                    return this.copy(enemyList = calculateNextEnemies(), frame = frame + 1, score = score + 1)
                 }
+            }
+        }
+
+        sealed class End : GameState() {
+            data class GameClear(
+                    override val player: GameObject,
+                    override val enemyList: List<GameObject>,
+                    override val frame: Int,
+                    override val score: Int
+            ) : End()
+
+            data class GameOver(
+                    override val player: GameObject,
+                    override val enemyList: List<GameObject>,
+                    override val frame: Int,
+                    override val score: Int
+            ) : End()
+        }
+
+        companion object {
+            fun newGame(): GameState {
+                return Playing.PlayerRunning(
+                        GameObject(
+                                600.0,
+                                400.0,
+                                100.0,
+                                100.0,
+                                v3
+                        ),
+                        emptyList(),
+                        0,
+                        0
+                )
             }
         }
     }
