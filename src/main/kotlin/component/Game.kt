@@ -111,7 +111,7 @@ class Game : RComponent<RProps, Game.State>() {
             }
             is GameState.End.GameClear -> {
                 drawGameObject(context, gameState.player)
-                drawGameObject(context, GameState.chicken())
+                drawGameObject(context, GameState.chicken)
                 val statusText = "Happy Birthday uzimaru!"
                 val textWidth = context.measureText(statusText).width
                 context.font = "32px \"VT323\""
@@ -159,7 +159,7 @@ class Game : RComponent<RProps, Game.State>() {
         abstract val score: Int
 
         object Start : GameState() {
-            override val player: GameObject = uzimaru1()
+            override val player: GameObject = uzimaru1
             override val frame: Int = 0
             override val enemyList: List<GameObject> = emptyList()
             override val score: Int = 0
@@ -175,7 +175,7 @@ class Game : RComponent<RProps, Game.State>() {
                                 it.copy(x = it.x + 8)
                             }.filter {
                                 it.x < canvasWidth
-                            }.plus(enemy())
+                            }.plus(enemy)
                             .toList()
                 } else {
                     return enemyList.asSequence()
@@ -220,9 +220,9 @@ class Game : RComponent<RProps, Game.State>() {
                         groundY
                     }
                     val nextPlayer = if (score < evolutionScore) {
-                        uzimaru1().copy(y = playerY)
+                        uzimaru1.copy(y = playerY)
                     } else {
-                        uzimaru2().copy(y = playerY)
+                        uzimaru2.copy(y = playerY)
                     }
                     return if (y <= groundY) {
                         PlayerJumping(nextPlayer, calculateNextEnemies(), t + 1, frame + 1, score + 1)
@@ -253,9 +253,9 @@ class Game : RComponent<RProps, Game.State>() {
                         return it
                     }
                     val nextPlayer = if (score < evolutionScore) {
-                        uzimaru1()
+                        uzimaru1
                     } else {
-                        uzimaru2()
+                        uzimaru2
                     }
                     return this.copy(player = nextPlayer, enemyList = calculateNextEnemies(), frame = frame + 1, score = score + 1)
                 }
@@ -292,69 +292,57 @@ class Game : RComponent<RProps, Game.State>() {
             const val chickenWidth = 200.0
             const val chickenHeight = 200.0
 
+            private val v1 = Image().apply {
+                src = "./images/v1.svg"
+            }
+            private val v2 = Image().apply {
+                src = "./images/v2.svg"
+            }
+            private val v3 = Image().apply {
+                src = "./images/v3.svg"
+            }
+            private val v4 = Image().apply {
+                src = "./images/v4.svg"
+            }
+
+            val uzimaru1 = GameObject(
+                    playerX,
+                    groundY,
+                    playerWidth,
+                    playerHeight,
+                    v2
+            )
+            val uzimaru2 = GameObject(
+                    playerX,
+                    groundY,
+                    playerWidth,
+                    playerHeight,
+                    v3
+            )
+            val enemy = GameObject(
+                    0.0,
+                    groundY,
+                    enemyWidth,
+                    enemyHeight,
+                    v1
+            )
+            val chicken = GameObject(
+                    canvasWidth / 2 - chickenWidth / 2,
+                    canvasHeight / 2,
+                    chickenWidth,
+                    chickenHeight,
+                    v4
+            )
+
             fun newGame(): GameState {
                 return Playing.PlayerRunning(
-                        uzimaru1(),
+                        uzimaru1,
                         emptyList(),
                         0,
                         0
                 )
             }
 
-            fun uzimaru1(): GameObject {
-                return GameObject(
-                        playerX,
-                        groundY,
-                        playerWidth,
-                        playerHeight,
-                        v2
-                )
-            }
-
-            fun uzimaru2(): GameObject {
-                return GameObject(
-                        playerX,
-                        groundY,
-                        playerWidth,
-                        playerHeight,
-                        v3
-                )
-            }
-
-            fun enemy(): GameObject {
-                return GameObject(
-                        0.0,
-                        groundY,
-                        enemyWidth,
-                        enemyHeight,
-                        v1
-                )
-            }
-
-            fun chicken(): GameObject {
-                return GameObject(
-                        canvasWidth / 2 - chickenWidth / 2,
-                        canvasHeight / 2,
-                        chickenWidth,
-                        chickenHeight,
-                        v4
-                )
-            }
-        }
-    }
-
-    companion object {
-        private val v1 = Image().apply {
-            src = "./images/v1.svg"
-        }
-        private val v2 = Image().apply {
-            src = "./images/v2.svg"
-        }
-        private val v3 = Image().apply {
-            src = "./images/v3.svg"
-        }
-        private val v4 = Image().apply {
-            src = "./images/v4.svg"
         }
     }
 }
