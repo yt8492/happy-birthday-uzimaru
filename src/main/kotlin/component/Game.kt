@@ -17,7 +17,7 @@ class Game : RComponent<RProps, Game.State>() {
 
     init {
         state.apply {
-            gameState = GameState.newGame()
+            gameState = GameState.Start
         }
         keydown = false
     }
@@ -46,6 +46,11 @@ class Game : RComponent<RProps, Game.State>() {
         if (keydown) {
             keydown = false
             when (currentState) {
+                is GameState.Start -> {
+                    setState {
+                        gameState = GameState.newGame()
+                    }
+                }
                 is GameState.Playing.PlayerRunning -> {
                     setState {
                         gameState = GameState.Playing.PlayerJumping(
@@ -59,7 +64,7 @@ class Game : RComponent<RProps, Game.State>() {
                 }
                 is GameState.End -> {
                     setState {
-                        gameState = GameState.newGame()
+                        gameState = GameState.Start
                     }
                 }
             }
@@ -88,6 +93,12 @@ class Game : RComponent<RProps, Game.State>() {
         context.font = "24px \"VT323\""
         context.fillText("score: ${gameState.score}", 50.0, 50.0)
         when (gameState) {
+            is GameState.Start -> {
+                val statusText = "Please Press Space Key!"
+                val textWidth = context.measureText(statusText).width
+                context.font = "32px \"VT323\""
+                context.fillText(statusText, GameState.canvasWidth / 2 - textWidth / 2, GameState.canvasHeight / 2)
+            }
             is GameState.Playing -> {
                 gameState.enemyList.forEach {
                     drawGameObject(context, it)
@@ -152,6 +163,13 @@ class Game : RComponent<RProps, Game.State>() {
         abstract val frame: Int
         abstract val enemyList: List<GameObject>
         abstract val score: Int
+
+        object Start : GameState() {
+            override val player: GameObject = uzimaru1()
+            override val frame: Int = 0
+            override val enemyList: List<GameObject> = emptyList()
+            override val score: Int = 0
+        }
 
         sealed class Playing : GameState() {
             abstract fun calculateNextState(): GameState
