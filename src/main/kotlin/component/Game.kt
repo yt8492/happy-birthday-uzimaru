@@ -131,6 +131,7 @@ class Game : RComponent<RProps, Game.State>() {
         val canvasWidth = 800.0
         val canvasHeight = 600.0
         val groundY = 400.0
+        val evolutionScore = 1000
         val clearScore = 2000
 
         protected fun enemy(): GameObject {
@@ -164,6 +165,18 @@ class Game : RComponent<RProps, Game.State>() {
                 }
             }
 
+            protected fun calculateGameEnd(): End? {
+                if (enemyList.any { it.checkCollision(player) }) {
+                    return End.GameOver(player, enemyList, frame, score)
+                }
+                if (score >= clearScore) {
+                    return End.GameClear(player, enemyList, frame, score)
+                }
+                return null
+            }
+
+
+
             data class PlayerJumping(
                     override val player: GameObject,
                     override val enemyList: List<GameObject>,
@@ -171,20 +184,28 @@ class Game : RComponent<RProps, Game.State>() {
                     override val frame: Int,
                     override val score: Int
             ) : Playing() {
+
                 override fun calculateNextState(): GameState {
-                    if (enemyList.any { it.checkCollision(player) }) {
-                        return End.GameOver(player, enemyList, frame, score)
-                    }
-                    if (score >= clearScore) {
-                        return End.GameClear(player, enemyList, frame, score)
+                    calculateGameEnd()?.let {
+                        return it
                     }
                     val gravity = 0.4
                     val vy = 13
                     val y = 0.5 * gravity * t * t - vy * t + (groundY)
-                    return if (y <= groundY) {
-                        PlayerJumping(player.copy(y = y), calculateNextEnemies(), t + 1, frame + 1, score + 1)
+                    val playerY = if (y <= groundY) {
+                        y
                     } else {
-                        PlayerRunning(player.copy(y = groundY), calculateNextEnemies(), frame + 1, score + 1)
+                        groundY
+                    }
+                    val nextPlayer = if (score < evolutionScore) {
+                        uzimaru1().copy(y = playerY)
+                    } else {
+                        uzimaru2().copy(y = playerY)
+                    }
+                    return if (y <= groundY) {
+                        PlayerJumping(nextPlayer, calculateNextEnemies(), t + 1, frame + 1, score + 1)
+                    } else {
+                        PlayerRunning(nextPlayer, calculateNextEnemies(), frame + 1, score + 1)
                     }
                 }
             }
@@ -196,13 +217,15 @@ class Game : RComponent<RProps, Game.State>() {
                     override val score: Int
             ) : Playing() {
                 override fun calculateNextState(): GameState {
-                    if (enemyList.any { it.checkCollision(player) }) {
-                        return End.GameOver(player, enemyList, frame, score)
+                    calculateGameEnd()?.let {
+                        return it
                     }
-                    if (score >= clearScore) {
-                        return End.GameClear(player, enemyList, frame, score)
+                    val nextPlayer = if (score < evolutionScore) {
+                        uzimaru1()
+                    } else {
+                        uzimaru2()
                     }
-                    return this.copy(enemyList = calculateNextEnemies(), frame = frame + 1, score = score + 1)
+                    return this.copy(player = nextPlayer, enemyList = calculateNextEnemies(), frame = frame + 1, score = score + 1)
                 }
             }
         }
@@ -236,6 +259,26 @@ class Game : RComponent<RProps, Game.State>() {
                         emptyList(),
                         0,
                         0
+                )
+            }
+
+            fun uzimaru1(): GameObject {
+                return GameObject(
+                        600.0,
+                        400.0,
+                        100.0,
+                        100.0,
+                        v2
+                )
+            }
+
+            fun uzimaru2(): GameObject {
+                return GameObject(
+                        600.0,
+                        400.0,
+                        100.0,
+                        100.0,
+                        v3
                 )
             }
         }
